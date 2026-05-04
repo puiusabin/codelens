@@ -1,16 +1,36 @@
-# This is a sample Python script.
+# main.py
+import typer
+from rich.console import Console
+from rich.markdown import Markdown
+from pathlib import Path
+from agents.analyzer import analyze_code
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+# Initialize Typer and Rich Console
+app = typer.Typer(help="CodeLens: AI-Powered Code Review CLI")
+console = Console()
 
+@app.command()
+def explain(filepath: str):
+    """
+    Analyzes a local file and explains its logic.
+    """
+    path = Path(filepath)
+    
+    if not path.is_file():
+        console.print(f"[bold red]Error:[/bold red] File '{filepath}' does not exist.")
+        raise typer.Exit(code=1)
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
+    # Read the file
+    with console.status(f"[bold cyan]Reading {filepath}...", spinner="dots"):
+        code_content = path.read_text()
 
+    # Call Agent 1 (Gemini)
+    with console.status("[bold green]Agent 1 is analyzing the code...", spinner="bouncingBar"):
+        explanation = analyze_code(code_content)
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+    # Print the result beautifully in the terminal
+    console.print("\n[bold yellow]--- CodeLens Analysis ---[/bold yellow]")
+    console.print(Markdown(explanation))
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+if __name__ == "__main__":
+    app()
