@@ -1,24 +1,32 @@
-name: Python CI
+# .github/workflows/ci.yml
+name: CodeLens CI Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
-    - name: Install dependencies
+        python-version: "3.11"
+        cache: "pip" # Speeds up the pipeline by caching dependencies
+
+    - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest typer rich
-    - name: Run tests
+        pip install -r requirements.txt
+        pip install pytest
+
+    - name: Run Pytest Sanity Checks
       run: |
-        pytest
+        pytest test_cli.py -v
