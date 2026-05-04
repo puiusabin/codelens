@@ -6,13 +6,13 @@ def generate_tests(code_content: str, analysis_context: str, framework: str = "p
     
     system_prompt = f"""
     You are an expert QA Automation Engineer. 
-    Your task is to write comprehensive unit tests for the provided code using {framework}.
+    Write comprehensive unit tests for the provided code using {framework}.
     
     CRITICAL INSTRUCTIONS:
-    1. Read the provided 'Analysis Context' to understand the code smells and edge cases.
-    2. Write tests for the 'happy path' (normal inputs).
-    3. Write tests for the edge cases mentioned in the analysis (e.g., exceptions, invalid inputs).
-    4. Output ONLY the code block containing the tests. Do not include introductory text.
+    1. Read the 'Analysis Context' to understand edge cases.
+    2. Write tests for the 'happy path'.
+    3. Write tests for exceptions. If testing an exception in Pytest, you MUST use `with pytest.raises(ExceptionType):`.
+    4. Output ONLY raw, executable Python code. DO NOT wrap the code in markdown blocks (no ```python). DO NOT add explanations.
     """
     
     user_prompt = f"Code to test:\n{code_content}\n\nAnalysis Context:\n{analysis_context}"
@@ -25,4 +25,13 @@ def generate_tests(code_content: str, analysis_context: str, framework: str = "p
         ]
     )
     
-    return response['message']['content']
+    # Strip markdown formatting just in case Gemma ignores the prompt
+    content = response['message']['content'].strip()
+    if content.startswith('```python'):
+        content = content[9:]
+    elif content.startswith('```'):
+        content = content[3:]
+    if content.endswith('```'):
+        content = content[:-3]
+        
+    return content.strip()
