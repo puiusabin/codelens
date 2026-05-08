@@ -2,6 +2,7 @@
 import typer
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.syntax import Syntax
 from pathlib import Path
 
 from agents.analyzer import analyze_code, explain_code, check_code_smells, analyze_diff
@@ -124,7 +125,7 @@ def test(filepath: str, framework: str = "pytest", save: bool = False):
         test_code = generate_tests(code_content, analysis, framework)
 
     console.print(f"\n[bold yellow]--- Generated {framework.capitalize()} Tests ---[/bold yellow]")
-    console.print(Markdown(test_code))
+    console.print(Syntax(test_code, "python", theme="monokai", line_numbers=True))
 
     if save:
         test_filename = f"test_{path.name}"
