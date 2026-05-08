@@ -6,10 +6,37 @@ from pathlib import Path
 
 from agents.analyzer import analyze_code
 from agents.tester import generate_tests
+from config import save_config
 
-# Initialize Typer and Rich Console
 app = typer.Typer(help="CodeLens: AI-Powered Code Review CLI")
 console = Console()
+
+VALID_BACKENDS = ["openai", "anthropic", "ollama"]
+
+auth_app = typer.Typer(help="Authentication commands.")
+app.add_typer(auth_app, name="auth")
+
+
+@app.command()
+def init():
+    """Prompts for AI backend and saves configuration to ~/.codelens_config."""
+    backend = typer.prompt("Select AI backend (openai/anthropic/ollama)", default="ollama")
+    if backend not in VALID_BACKENDS:
+        console.print(
+            f"[bold red]Error:[/bold red] Invalid backend '{backend}'. "
+            f"Choose from: {', '.join(VALID_BACKENDS)}"
+        )
+        raise typer.Exit(code=1)
+    save_config({"ai_backend": backend})
+    console.print("[bold green]✓ Configuration saved to ~/.codelens_config[/bold green]")
+
+
+@auth_app.command("github")
+def auth_github():
+    """Stores a GitHub Personal Access Token in ~/.codelens_config."""
+    token = typer.prompt("Enter your GitHub Personal Access Token", hide_input=True)
+    save_config({"github_token": token})
+    console.print("[bold green]✓ GitHub token saved to ~/.codelens_config[/bold green]")
 
 @app.command()
 def explain(filepath: str):
