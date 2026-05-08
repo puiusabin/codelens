@@ -175,7 +175,7 @@ sequenceDiagram
         Note over CLI,A1: Phase 1 — Context Analysis
         CLI->>A1: analyze_code(code_content)
         A1->>LLM: chat(system_prompt, code)
-        LLM-->>A1: TL;DR + code smells
+        LLM-->>A1: TL;DR and code smells
         A1-->>CLI: analysis_context
     end
 
