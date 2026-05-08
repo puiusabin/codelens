@@ -4,9 +4,10 @@ from rich.console import Console
 from rich.markdown import Markdown
 from pathlib import Path
 
-from agents.analyzer import analyze_code
+from agents.analyzer import analyze_code, explain_code, check_code_smells, analyze_diff
+from agents.github_api import fetch_pr_diff
 from agents.tester import generate_tests
-from config import save_config
+from config import save_config, load_config
 
 app = typer.Typer(help="CodeLens: AI-Powered Code Review CLI")
 console = Console()
@@ -38,61 +39,98 @@ def auth_github():
     save_config({"github_token": token})
     console.print("[bold green]✓ GitHub token saved to ~/.codelens_config[/bold green]")
 
+
 @app.command()
 def explain(filepath: str):
-    """
-    Analyzes a local file and explains its logic.
-    """
+    """Analyzes a local file and explains its logic."""
     path = Path(filepath)
-    
+
     if not path.is_file():
         console.print(f"[bold red]Error:[/bold red] File '{filepath}' does not exist.")
         raise typer.Exit(code=1)
 
-    # Read the file
     with console.status(f"[bold cyan]Reading {filepath}...", spinner="dots"):
         code_content = path.read_text()
 
-    # Call Agent 1 (Gemini)
     with console.status("[bold green]Agent 1 is analyzing the code...", spinner="bouncingBar"):
-        explanation = analyze_code(code_content)
+        explanation = explain_code(code_content)
 
-    # Print the result beautifully in the terminal
     console.print("\n[bold yellow]--- CodeLens Analysis ---[/bold yellow]")
     console.print(Markdown(explanation))
 
+
 @app.command()
-def test(filepath: str, framework: str = "pytest", save: bool = False):
-    """
-    Generates unit tests for a local file using Agent 1 (Analysis) and Agent 2 (QA).
-    """
+def check(filepath: str):
+    """Analyzes a file for code smells and security issues."""
     path = Path(filepath)
-    
+
     if not path.is_file():
         console.print(f"[bold red]Error:[/bold red] File '{filepath}' does not exist.")
         raise typer.Exit(code=1)
 
-    # 1. Read the file
     code_content = path.read_text()
 
-    # 2. Run Agent 1 to get the context
+    with console.status("[bold cyan]Agent 1 is scanning for code smells...", spinner="dots"):
+        smells = check_code_smells(code_content)
+
+    console.print("\n[bold yellow]--- CodeLens Code Check ---[/bold yellow]")
+    for line in smells.strip().splitlines():
+        if line.startswith("[CRITICAL]"):
+            console.print(f"[bold red]{line}[/bold red]")
+        elif line.startswith("[WARNING]"):
+            console.print(f"[bold yellow]{line}[/bold yellow]")
+        else:
+            console.print(line)
+
+
+@app.command()
+def review(pr_url: str):
+    """Fetches a GitHub PR diff and analyzes the changes."""
+    config = load_config()
+    token = config.get("github_token")
+
+    with console.status("[bold cyan]Fetching PR diff from GitHub...", spinner="dots"):
+        try:
+            diff = fetch_pr_diff(pr_url, token)
+        except ValueError as e:
+            console.print(f"[bold red]Error:[/bold red] {e}")
+            raise typer.Exit(code=1)
+        except Exception as e:
+            console.print(f"[bold red]Error fetching PR:[/bold red] {e}")
+            raise typer.Exit(code=1)
+
+    with console.status("[bold green]Agent 1 is analyzing the PR...", spinner="bouncingBar"):
+        analysis = analyze_diff(diff)
+
+    console.print("\n[bold yellow]--- CodeLens PR Review ---[/bold yellow]")
+    console.print(Markdown(analysis))
+
+
+@app.command()
+def test(filepath: str, framework: str = "pytest", save: bool = False):
+    """Generates unit tests for a local file using Agent 1 (Analysis) and Agent 2 (QA)."""
+    path = Path(filepath)
+
+    if not path.is_file():
+        console.print(f"[bold red]Error:[/bold red] File '{filepath}' does not exist.")
+        raise typer.Exit(code=1)
+
+    code_content = path.read_text()
+
     with console.status("[bold cyan]Agent 1 is analyzing the code for edge cases...", spinner="dots"):
         analysis = analyze_code(code_content)
-        
-    # 3. Run Agent 2 to generate the tests
+
     with console.status(f"[bold green]Agent 2 is writing {framework} tests...", spinner="bouncingBar"):
         test_code = generate_tests(code_content, analysis, framework)
 
-    # 4. Output the results
     console.print(f"\n[bold yellow]--- Generated {framework.capitalize()} Tests ---[/bold yellow]")
     console.print(Markdown(test_code))
 
-    # 5. Handle the --save flag
     if save:
-        # Create a new filename, e.g., test_script.py -> test_test_script.py
         test_filename = f"test_{path.name}"
         Path(test_filename).write_text(test_code)
         console.print(f"\n[bold green]✓ Tests successfully saved to {test_filename}[/bold green]")
+
 
 if __name__ == "__main__":
     app()
