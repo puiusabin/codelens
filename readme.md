@@ -175,16 +175,16 @@ sequenceDiagram
         Note over CLI,A1: Phase 1 — Context Analysis
         CLI->>A1: analyze_code(code_content)
         A1->>LLM: chat(system_prompt, code)
-        LLM-->>A1: TL;DR and code smells
+        LLM-->>A1: analysis result
         A1-->>CLI: analysis_context
     end
 
     rect rgb(220, 255, 230)
         Note over CLI,A2: Phase 2 — Test Generation
-        CLI->>A2: generate_tests(code, analysis, "pytest")
-        A2->>LLM: chat(system_prompt, code + analysis)
+        CLI->>A2: generate_tests(code, analysis, pytest)
+        A2->>LLM: chat(system_prompt, code and analysis)
         LLM-->>A2: raw test code
-        Note over A2: Strip markdown fences\nValidate ast.parse()\nRemove trailing prose
+        Note over A2: Strip fences, validate syntax, remove trailing prose
         A2-->>CLI: clean test code
     end
 
@@ -212,13 +212,13 @@ sequenceDiagram
     CLI->>GH: fetch_pr_diff(pr_url, token)
     GH->>GH: parse_pr_url() → owner, repo, number
     GH->>API: GET /repos/{owner}/{repo}/pulls/{number}
-    Note over GH,API: Accept: application/vnd.github.v3.diff\nAuthorization: token {token}
+    Note over GH,API: diff format with optional auth token
     API-->>GH: unified diff
     GH-->>CLI: diff_content
 
     CLI->>A1: analyze_diff(diff_content)
     A1->>LLM: chat(system_prompt, diff)
-    LLM-->>A1: Summary + Key Changes + Potential Impact
+    LLM-->>A1: Summary, Key Changes, Potential Impact
     A1-->>CLI: markdown analysis
 
     CLI-->>User: Display PR Review
