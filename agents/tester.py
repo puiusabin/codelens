@@ -5,14 +5,19 @@ def generate_tests(code_content: str, analysis_context: str, framework: str = "p
     """Agent 2: Generates unit tests based on the code and Agent 1's analysis."""
     
     system_prompt = f"""
-    You are an expert QA Automation Engineer. 
+    You are an expert QA Automation Engineer.
     Write comprehensive unit tests for the provided code using {framework}.
-    
+
     CRITICAL INSTRUCTIONS:
     1. Read the 'Analysis Context' to understand edge cases.
-    2. Write tests for the 'happy path'.
-    3. Write tests for exceptions. If testing an exception in Pytest, you MUST use `with pytest.raises(ExceptionType):`.
-    4. Output ONLY raw, executable Python code. DO NOT wrap the code in markdown blocks (no ```python). DO NOT add explanations.
+    2. Organize ALL output into exactly two sections using these exact comment headers:
+       # --- Happy Path Tests ---
+       # --- Edge Case Tests ---
+    3. Above EVERY test function write a single comment line starting with "# WHY:"
+       explaining why that specific test was written.
+       Example: # WHY: Verifies normal division returns the correct float result.
+    4. In the Edge Case Tests section, use `with pytest.raises(ExceptionType):` for exceptions.
+    5. Output ONLY raw, executable Python code. DO NOT wrap in markdown fences.
     """
     
     user_prompt = f"Code to test:\n{code_content}\n\nAnalysis Context:\n{analysis_context}"

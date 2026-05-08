@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 from typer.testing import CliRunner
 from main import app
@@ -62,3 +63,29 @@ def test_review_command_success(tmp_path):
         result = runner.invoke(app, ["review", "https://github.com/a/b/pull/1"])
     assert result.exit_code == 0
     assert "PR Review" in result.stdout
+
+
+def test_test_command_file_not_found():
+    result = runner.invoke(app, ["test", "nonexistent.py"])
+    assert result.exit_code == 1
+
+
+def test_test_command_generates_output(tmp_path):
+    code_file = tmp_path / "calc.py"
+    code_file.write_text("def add(a, b): return a + b")
+    with patch("main.analyze_code", return_value="No issues."), \
+         patch("main.generate_tests", return_value="def test_add(): assert add(1, 2) == 3"):
+        result = runner.invoke(app, ["test", str(code_file)])
+    assert result.exit_code == 0
+    assert "Generated" in result.stdout
+
+
+def test_test_command_save_flag(tmp_path):
+    code_file = tmp_path / "calc.py"
+    code_file.write_text("def add(a, b): return a + b")
+    with patch("main.analyze_code", return_value="No issues."), \
+         patch("main.generate_tests", return_value="def test_add(): assert add(1, 2) == 3"):
+        result = runner.invoke(app, ["test", str(code_file), "--save"])
+    assert result.exit_code == 0
+    assert "saved to test_calc.py" in result.stdout
+    Path("test_calc.py").unlink(missing_ok=True)
