@@ -104,6 +104,128 @@ The CLI relies on a direct collaboration between two LLMs (which can run locally
 
 ---
 
+## 🗺 Architecture Diagrams
+
+### System Architecture
+
+```mermaid
+flowchart TD
+    User(["👨‍💻 Developer"])
+
+    subgraph CLI ["CodeLens CLI · main.py"]
+        init["init\nConfigure AI backend"]
+        auth["auth github\nStore GitHub PAT"]
+        explain["explain &lt;filepath&gt;"]
+        check["check &lt;filepath&gt;"]
+        review["review &lt;pr_url&gt;"]
+        chat["chat &lt;filepath&gt;"]
+        test["test &lt;filepath&gt;"]
+    end
+
+    subgraph Analyzer ["Agent 1 · Context Analyzer · agents/analyzer.py"]
+        A1E["explain_code()"]
+        A1C["check_code_smells()"]
+        A1D["analyze_diff()"]
+        A1A["analyze_code()"]
+        A1R["chat_response()"]
+    end
+
+    subgraph Tester ["Agent 2 · QA Sentinel · agents/tester.py"]
+        A2["generate_tests()"]
+    end
+
+    Config[("~/.codelens_config\nJSON")]
+    YAML[("codelens.yaml\nProject Config")]
+    Ollama[("Ollama · gemma2\nLocal LLM")]
+    GitHub[("GitHub REST API")]
+
+    User --> CLI
+    init & auth --> Config
+    review -.->|reads token| Config
+
+    explain --> A1E
+    check --> A1C
+    review --> A1D
+    chat --> A1R
+    test --> A1A
+    A1A -->|analysis context| A2
+
+    A1E & A1C & A1D & A1A -.->|reads if present| YAML
+
+    A1E & A1C & A1D & A1A & A1R & A2 --> Ollama
+    review --> GitHub
+```
+
+### Multi-Agent Pipeline — `codelens test`
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as main.py
+    participant A1 as Agent 1 (analyzer.py)
+    participant A2 as Agent 2 (tester.py)
+    participant LLM as Ollama / gemma2
+    participant FS as File System
+
+    User->>CLI: codelens test file.py --save
+    CLI->>FS: read file.py
+    FS-->>CLI: code_content
+
+    rect rgb(220, 235, 255)
+        Note over CLI,A1: Phase 1 — Context Analysis
+        CLI->>A1: analyze_code(code_content)
+        A1->>LLM: chat(system_prompt, code)
+        LLM-->>A1: TL;DR + code smells
+        A1-->>CLI: analysis_context
+    end
+
+    rect rgb(220, 255, 230)
+        Note over CLI,A2: Phase 2 — Test Generation
+        CLI->>A2: generate_tests(code, analysis, "pytest")
+        A2->>LLM: chat(system_prompt, code + analysis)
+        LLM-->>A2: raw test code
+        Note over A2: Strip markdown fences\nValidate ast.parse()\nRemove trailing prose
+        A2-->>CLI: clean test code
+    end
+
+    CLI-->>User: Syntax-highlighted test output
+    CLI->>FS: write test_file.py
+    CLI-->>User: ✓ Tests saved to test_file.py
+```
+
+### Review Workflow — `codelens review`
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as main.py
+    participant CFG as config.py
+    participant GH as github_api.py
+    participant API as GitHub REST API
+    participant A1 as Agent 1 (analyzer.py)
+    participant LLM as Ollama / gemma2
+
+    User->>CLI: codelens review github.com/.../pull/42
+    CLI->>CFG: load_config()
+    CFG-->>CLI: github_token
+
+    CLI->>GH: fetch_pr_diff(pr_url, token)
+    GH->>GH: parse_pr_url() → owner, repo, number
+    GH->>API: GET /repos/{owner}/{repo}/pulls/{number}
+    Note over GH,API: Accept: application/vnd.github.v3.diff\nAuthorization: token {token}
+    API-->>GH: unified diff
+    GH-->>CLI: diff_content
+
+    CLI->>A1: analyze_diff(diff_content)
+    A1->>LLM: chat(system_prompt, diff)
+    LLM-->>A1: Summary + Key Changes + Potential Impact
+    A1-->>CLI: markdown analysis
+
+    CLI-->>User: Display PR Review
+```
+
+---
+
 ## 🚀 AI-Assisted Software Development Process (MDS 2026 Requirements)
 
 This project is developed adhering to the principles of *AI-Assisted Software Engineering*:
