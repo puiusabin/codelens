@@ -1,8 +1,10 @@
+import pytest
 from pathlib import Path
 from unittest.mock import patch
 from typer.testing import CliRunner
 import agents.analyzer
 from main import app
+from config import load_config
 
 runner = CliRunner()
 
@@ -122,3 +124,11 @@ def test_yaml_missing_no_error(tmp_path, monkeypatch):
         mock_ollama.chat.return_value = {'message': {'content': 'ok'}}
         result = agents.analyzer.explain_code("def f(): pass")
     assert result == 'ok'
+
+
+def test_load_config_raises_on_corrupt_file(tmp_path, monkeypatch):
+    corrupt = tmp_path / ".codelens_config"
+    corrupt.write_text("{broken")
+    monkeypatch.setattr("config.CONFIG_PATH", corrupt)
+    with pytest.raises(SystemExit, match="corrupted"):
+        load_config()

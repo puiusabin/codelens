@@ -13,4 +13,9 @@ def save_config(data: dict) -> None:
 def load_config() -> dict:
     if not CONFIG_PATH.exists():
         return {}
-    return json.loads(CONFIG_PATH.read_text())
+    try:
+        return json.loads(CONFIG_PATH.read_text())
+    except json.JSONDecodeError:
+        raise SystemExit(
+            f"Error: {CONFIG_PATH} is corrupted. Run 'codelens init' to reset it."
+        )
