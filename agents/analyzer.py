@@ -1,15 +1,33 @@
 # agents/analyzer.py
 import ollama
+import yaml
+from pathlib import Path
+
+
+def _load_project_instructions() -> str:
+    yaml_path = Path.cwd() / "codelens.yaml"
+    if not yaml_path.exists():
+        return ""
+    data = yaml.safe_load(yaml_path.read_text())
+    return data.get("instructions", "") if data else ""
 
 
 def _chat(system_prompt: str, user_content: str) -> str:
+    extra = _load_project_instructions()
+    full_prompt = f"{system_prompt}\n\n{extra}".strip() if extra else system_prompt
     response = ollama.chat(
         model='gemma2',
         messages=[
-            {'role': 'system', 'content': system_prompt},
+            {'role': 'system', 'content': full_prompt},
             {'role': 'user', 'content': user_content},
         ]
     )
+    return response['message']['content']
+
+
+def chat_response(messages: list[dict]) -> str:
+    """Agent 1: One turn in a multi-turn conversation."""
+    response = ollama.chat(model='gemma2', messages=messages)
     return response['message']['content']
 
 

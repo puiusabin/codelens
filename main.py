@@ -5,7 +5,7 @@ from rich.markdown import Markdown
 from rich.syntax import Syntax
 from pathlib import Path
 
-from agents.analyzer import analyze_code, explain_code, check_code_smells, analyze_diff
+from agents.analyzer import analyze_code, explain_code, check_code_smells, analyze_diff, chat_response
 from agents.github_api import fetch_pr_diff
 from agents.tester import generate_tests
 from config import save_config, load_config
@@ -105,6 +105,41 @@ def review(pr_url: str):
 
     console.print("\n[bold yellow]--- CodeLens PR Review ---[/bold yellow]")
     console.print(Markdown(analysis))
+
+
+@app.command()
+def chat(filepath: str):
+    """Opens an interactive chat session about a file."""
+    path = Path(filepath)
+    if not path.is_file():
+        console.print(f"[bold red]Error:[/bold red] File '{filepath}' does not exist.")
+        raise typer.Exit(code=1)
+
+    code_content = path.read_text()
+    system_prompt = (
+        "You are an expert Senior Software Engineer. "
+        "Answer questions about the following code concisely and specifically.\n\n"
+        f"Code:\n{code_content}"
+    )
+    messages = [{'role': 'system', 'content': system_prompt}]
+
+    console.print("[bold green]Chat mode active. Type 'exit' or 'quit' to leave.[/bold green]")
+
+    while True:
+        try:
+            question = typer.prompt(">")
+        except (EOFError, KeyboardInterrupt):
+            break
+        if question.strip().lower() in ("exit", "quit"):
+            break
+
+        messages.append({'role': 'user', 'content': question})
+
+        with console.status("[bold cyan]Thinking...", spinner="dots"):
+            answer = chat_response(messages)
+
+        messages.append({'role': 'assistant', 'content': answer})
+        console.print(Markdown(answer))
 
 
 @app.command()

@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest.mock import patch
 from typer.testing import CliRunner
+import agents.analyzer
 from main import app
 
 runner = CliRunner()
@@ -89,3 +90,35 @@ def test_test_command_save_flag(tmp_path):
     assert result.exit_code == 0
     assert "saved to test_calc.py" in result.stdout
     Path("test_calc.py").unlink(missing_ok=True)
+
+
+def test_chat_command_file_not_found():
+    result = runner.invoke(app, ["chat", "nonexistent.py"])
+    assert result.exit_code == 1
+
+
+def test_chat_command_exits_on_quit(tmp_path):
+    code_file = tmp_path / "code.py"
+    code_file.write_text("def add(a, b): return a + b")
+    with patch("main.chat_response", return_value="It adds two numbers."):
+        result = runner.invoke(app, ["chat", str(code_file)], input="what does this do?\nquit\n")
+    assert result.exit_code == 0
+    assert "Chat mode active" in result.stdout
+
+
+def test_yaml_instructions_injected(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "codelens.yaml").write_text("instructions: Always use Mockito.")
+    with patch("agents.analyzer.ollama") as mock_ollama:
+        mock_ollama.chat.return_value = {'message': {'content': 'ok'}}
+        agents.analyzer.explain_code("def f(): pass")
+        system_content = mock_ollama.chat.call_args.kwargs['messages'][0]['content']
+        assert "Mockito" in system_content
+
+
+def test_yaml_missing_no_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with patch("agents.analyzer.ollama") as mock_ollama:
+        mock_ollama.chat.return_value = {'message': {'content': 'ok'}}
+        result = agents.analyzer.explain_code("def f(): pass")
+    assert result == 'ok'
