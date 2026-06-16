@@ -9,18 +9,32 @@ def generate_tests(code_content: str, analysis_context: str, framework: str = "p
 
     system_prompt = f"""
     You are an expert QA Automation Engineer.
-    Write comprehensive unit tests for the provided code using {framework}.
+    Write {framework} unit tests for the provided Python code.
 
-    CRITICAL INSTRUCTIONS:
-    1. Read the 'Analysis Context' to understand edge cases.
-    2. Organize ALL output into exactly two sections using these exact comment headers:
+    RULES:
+    1. Import pytest and import every function you test at the top.
+    2. Every test function MUST be named starting with def test_.
+    3. Organize tests into two sections with these exact headers:
        # --- Happy Path Tests ---
        # --- Edge Case Tests ---
-    3. Above EVERY test function write a single comment line starting with "# WHY:"
-       explaining why that specific test was written.
-       Example: # WHY: Verifies normal division returns the correct float result.
-    4. In the Edge Case Tests section, use `with pytest.raises(ExceptionType):` for exceptions.
-    5. Output ONLY raw, executable Python code. DO NOT wrap in markdown fences.
+    4. Write a # WHY: comment above every test explaining what it verifies.
+    5. Use pytest.raises() for any test that expects an exception.
+    6. Output ONLY raw Python code. No markdown fences. No explanation text.
+
+    Example output format:
+    import pytest
+    from mymodule import my_func
+
+    # --- Happy Path Tests ---
+    # WHY: Verifies the normal case returns the correct value.
+    def test_my_func_basic():
+        assert my_func(2, 3) == 5
+
+    # --- Edge Case Tests ---
+    # WHY: Verifies empty input raises ValueError.
+    def test_my_func_empty():
+        with pytest.raises(ValueError):
+            my_func([])
     """
 
     user_prompt = f"Code to test:\n{code_content}\n\nAnalysis Context:\n{analysis_context}"
@@ -43,12 +57,17 @@ def generate_tests(code_content: str, analysis_context: str, framework: str = "p
         content = content[:-3]
     content = content.strip()
 
-    # Strip trailing prose lines the model sometimes appends after the code
+    # Strip trailing prose — stop only when the remaining content both parses
+    # and contains at least one test function. A bare comment parses cleanly
+    # but has no tests, so the old "any valid Python" check stopped too early.
     lines = content.splitlines()
     while lines:
+        joined = '\n'.join(lines)
         try:
-            ast.parse('\n'.join(lines))
-            break
+            ast.parse(joined)
+            if 'def test_' in joined:
+                break
         except SyntaxError:
-            lines.pop()
+            pass
+        lines.pop()
     return '\n'.join(lines).strip()

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codelens"
+version = "0.1.0"
+requires-python = ">=3.9"
+
+[tool.setuptools]
+py-modules = ["main", "config"]
+packages = ["agents"]
+
+[project.scripts]
+codelens = "main:app"
