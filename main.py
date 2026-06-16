@@ -163,8 +163,8 @@ def test(filepath: str, framework: str = "pytest", save: bool = False):
     console.print(Syntax(test_code, "python", theme="monokai", line_numbers=True))
 
     if save:
-        test_filename = f"test_{path.name}"
-        Path(test_filename).write_text(test_code)
+        test_filename = path.parent / f"test_{path.name}"
+        test_filename.write_text(test_code)
         console.print(f"\n[bold green]✓ Tests successfully saved to {test_filename}[/bold green]")
 
 
