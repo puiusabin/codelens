@@ -1,7 +1,7 @@
 # agents/analyzer.py
-import ollama
 import yaml
 from pathlib import Path
+from agents import llm
 
 
 def _load_project_instructions() -> str:
@@ -15,20 +15,12 @@ def _load_project_instructions() -> str:
 def _chat(system_prompt: str, user_content: str) -> str:
     extra = _load_project_instructions()
     full_prompt = f"{system_prompt}\n\n{extra}".strip() if extra else system_prompt
-    response = ollama.chat(
-        model='gemma2',
-        messages=[
-            {'role': 'system', 'content': full_prompt},
-            {'role': 'user', 'content': user_content},
-        ]
-    )
-    return response['message']['content']
+    return llm.chat(full_prompt, user_content)
 
 
 def chat_response(messages: list[dict]) -> str:
     """Agent 1: One turn in a multi-turn conversation."""
-    response = ollama.chat(model='gemma2', messages=messages)
-    return response['message']['content']
+    return llm.chat_messages(messages)
 
 
 def analyze_code(code_content: str) -> str:

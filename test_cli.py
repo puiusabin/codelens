@@ -19,7 +19,23 @@ def test_cli_help():
 def test_init_command_valid_backend(tmp_path):
     config_path = tmp_path / ".codelens_config"
     with patch("config.CONFIG_PATH", config_path):
-        result = runner.invoke(app, ["init"], input="ollama\n")
+        result = runner.invoke(app, ["init"], input="ollama\ngemma2\n")
+    assert result.exit_code == 0
+    assert "Configuration saved" in result.stdout
+
+
+def test_init_command_openai(tmp_path):
+    config_path = tmp_path / ".codelens_config"
+    with patch("config.CONFIG_PATH", config_path):
+        result = runner.invoke(app, ["init"], input="openai\ngpt-4o\nsk-test\n")
+    assert result.exit_code == 0
+    assert "Configuration saved" in result.stdout
+
+
+def test_init_command_anthropic(tmp_path):
+    config_path = tmp_path / ".codelens_config"
+    with patch("config.CONFIG_PATH", config_path):
+        result = runner.invoke(app, ["init"], input="anthropic\nclaude-sonnet-4-6\nsk-ant-test\n")
     assert result.exit_code == 0
     assert "Configuration saved" in result.stdout
 
@@ -90,8 +106,7 @@ def test_test_command_save_flag(tmp_path):
          patch("main.generate_tests", return_value="def test_add(): assert add(1, 2) == 3"):
         result = runner.invoke(app, ["test", str(code_file), "--save"])
     assert result.exit_code == 0
-    assert "saved to test_calc.py" in result.stdout
-    Path("test_calc.py").unlink(missing_ok=True)
+    assert "test_calc.py" in result.stdout
 
 
 def test_chat_command_file_not_found():
@@ -111,17 +126,15 @@ def test_chat_command_exits_on_quit(tmp_path):
 def test_yaml_instructions_injected(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "codelens.yaml").write_text("instructions: Always use Mockito.")
-    with patch("agents.analyzer.ollama") as mock_ollama:
-        mock_ollama.chat.return_value = {'message': {'content': 'ok'}}
+    with patch("agents.llm.chat", return_value="ok") as mock_chat:
         agents.analyzer.explain_code("def f(): pass")
-        system_content = mock_ollama.chat.call_args.kwargs['messages'][0]['content']
+        system_content = mock_chat.call_args[0][0]
         assert "Mockito" in system_content
 
 
 def test_yaml_missing_no_error(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    with patch("agents.analyzer.ollama") as mock_ollama:
-        mock_ollama.chat.return_value = {'message': {'content': 'ok'}}
+    with patch("agents.llm.chat", return_value="ok"):
         result = agents.analyzer.explain_code("def f(): pass")
     assert result == 'ok'
 

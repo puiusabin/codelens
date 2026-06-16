@@ -15,6 +15,8 @@ console = Console()
 
 VALID_BACKENDS = ["openai", "anthropic", "ollama"]
 
+_DEFAULT_MODELS = {"openai": "gpt-4o", "anthropic": "claude-sonnet-4-6", "ollama": "gemma2"}
+
 auth_app = typer.Typer(help="Authentication commands.")
 app.add_typer(auth_app, name="auth")
 
@@ -29,7 +31,15 @@ def init():
             f"Choose from: {', '.join(VALID_BACKENDS)}"
         )
         raise typer.Exit(code=1)
-    save_config({"ai_backend": backend})
+
+    model = typer.prompt("Model name", default=_DEFAULT_MODELS[backend])
+    config: dict = {"ai_backend": backend, "ai_model": model}
+
+    if backend in ("openai", "anthropic"):
+        api_key = typer.prompt("API key", hide_input=True)
+        config["ai_api_key"] = api_key
+
+    save_config(config)
     console.print("[bold green]✓ Configuration saved to ~/.codelens_config[/bold green]")
 
 

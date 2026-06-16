@@ -1,7 +1,7 @@
 # agents/tester.py
 import ast
 
-import ollama
+from agents import llm
 
 
 def generate_tests(code_content: str, analysis_context: str, framework: str = "pytest") -> str:
@@ -39,16 +39,8 @@ def generate_tests(code_content: str, analysis_context: str, framework: str = "p
 
     user_prompt = f"Code to test:\n{code_content}\n\nAnalysis Context:\n{analysis_context}"
 
-    response = ollama.chat(
-        model='gemma2',
-        messages=[
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': user_prompt}
-        ]
-    )
-
     # Strip markdown fences in case the model ignores the prompt
-    content = response['message']['content'].strip()
+    content = llm.chat(system_prompt, user_prompt).strip()
     if content.startswith('```python'):
         content = content[9:]
     elif content.startswith('```'):
